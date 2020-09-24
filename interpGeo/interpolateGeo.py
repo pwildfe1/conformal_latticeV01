@@ -1418,7 +1418,19 @@ def importCrvOBJ(loc):
 
 
 
+def importMeshOBJ(loc):
 
+	f = open(loc, 'r')
+	allLines = f.read().split('\n')
+
+	f = []
+	v = []
+
+	for i in range(len(allLines)):
+
+		line = allLines[i].split(' ')
+
+		if line[0] == 'v':
 
 
 

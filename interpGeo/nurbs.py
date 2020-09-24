@@ -39,21 +39,27 @@ class surface:
 
 		U = []
 		V = []
+		normals = []
 
 		for i in range(dimU+1):
 
 			col = []
+			n_col = []
 
 			for j in range(dimV+1):
 
 				u, v = i/dimU, j/dimV
 
 				col.append(self.evalSurface(u, v))
+				n_col.append(self.normalAt(u,v))
 
 			U.append(col)
+			normals.append(n_col)
 
 		self.grid = np.array(U)
+		self.norm = np.array(normals)
 
 		self.grid = np.swapaxes(self.grid, 0, 1)
+		self.norm = np.swapaxes(self.norm, 0, 1)
 
 		return self.grid

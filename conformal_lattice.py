@@ -11,6 +11,18 @@ import os
 import json
 
 
+class unit:
+
+	def __init__(self, verts = [], faces = [], members = []):
+
+		self.v = verts
+		self.f = faces
+		self.members = members
+
+	def uploadMesh(self, src):
+
+		
+
 
 class conformalLattice:
 
@@ -31,19 +43,11 @@ class conformalLattice:
 
 		self.rails = [NURBS.surface(guides[0]), NURBS.surface(guides[1])]
 
-		if len(formV) > 0:
-
-			if len(formV) != 2:
-				print("YOU NEED EXACTLY TWO V FORMING GUIDES")
-
-			self.formV = [NURBS.surface(formV[0]), NURBS.surface(formV[1])]
+		for i in range(len(formV)):
+			self.formV.append(NURBS.surface(formV[i]))
 		
-		if len(formW) > 0:
-
-			if len(formW) != 2:
-				print("YOU NEED EXACTLY TWO W FORMING GUIDES")
-
-			self.formW = [NURBS.surface(formW[0]), NURBS.surface(formW[1])]
+		for i in range(len(formW)):
+			self.formW.append(NURBS.surface(formW[i]))
 
 
 
@@ -63,59 +67,33 @@ class conformalLattice:
 
 		self.grid = np.array(self.grid)
 		self.grid = np.swapaxes(self.grid, 0, 2)
-
-
-	def warpPts(self):
-
-		if len(self.formV) != 0:
-
-			if len(self.formV) != 2:
-				print("YOU NEED EXACTLY TWO V FORMING GUIDES")
-				return -1
-
-			self.v_pts = [self.formV[0].extractGrid(self.dW, self.dV)]
-			self.v_pts.append(self.formV[1].extractGrid(self.dW, self.dV))
-
-		if len(self.formW) !=0:
-
-			if len(self.formW) != 2:
-				print("YOU NEED EXACTLY TWO W FORMING GUIDES")
-				return -1
-
-			self.w_pts = [self.formW[0].extractGrid(self.dW, self.dU)]
-			self.w_pts.append(self.formW[1].extractGrid(self.dW, self.dU))
+			
 
 
 	def warpGrid(self, factor=1):
 
-		if len(self.formV)>0:
+		for i in range(len(self.formV)):
 
-			self.warpPts()
+			self.v_pts.append(self.formV[i].extractGrid(self.dW, self.dV))
 
-			# tan = [self.v_pts[0] - self.grid[0,:,:]]
-			# layer_tangents = [tan]
-
-			# for i in range(self.grid.shape[0]-1):
-
-			# 	if i < self.grid.shape[0]/2 and i>0:
-			# 		tan = (self.grid[i-1, :, :] - self.grid[i, :, :]) * abs(self.grid.shape[0]/2 - i)
-			# 		layer_tangents.append(tan)
-			# 	elif i!=0:
-			# 		tan = (self.grid[i+1, :, :] - self.grid[i, :, :]) * abs(self.grid.shape[0]/2 - i)
-			# 		layer_tangents.append(tan)
-
-			# layer_tangents.append(self.v_pts[1] - self.grid[-1,:,:])
-
-			# self.v_pts[0] = np.flip(self.v_pts[0],axis=0)
-			self.v_pts[0] = np.flip(self.v_pts[0],axis=1)
-
-			self.grid[0, :, :] = self.v_pts[0]
-			self.grid[-1, :, :] = self.v_pts[1]
+			if i==0:
+				self.grid[0, :, :] = self.v_pts[i]
+				print('FIRST U LAYER WARPED')
+			if i==1:
+				self.grid[-1, :, :] = self.v_pts[i]
+				print('LAST U LAYER WARPED')
 
 
-		# for i in range(self.grid.shape[0]):
+		for i in range(len(self.formW)):
 
-		# 	self.grid[i, : ,:] = self.grid[i, :, :] + layer_tangents[i]*factor
+			self.w_pts.append(self.formW[i].extractGrid(self.dW, self.dU))
+
+			if i==0:
+				self.grid[:, 0, :] = self.w_pts[0]
+				print('FIRST V LAYER WARPED')
+			if i==1:
+				self.grid[:, -1, :] = self.w_pts[1]
+				print('LAST V LAYER WARPED')
 
 
 

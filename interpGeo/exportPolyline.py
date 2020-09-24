@@ -30,9 +30,9 @@ def exportPolyline(members, dir, sigDigits = 3):
             f.write('cstype bspline\ndeg 1\n')
             f.write('curv')
 
-            # length = int(np.linalg.norm(np.subtract(members[i][j][0],members[i][j][-1]))*m.pow(10,sigDigits))/m.pow(10,sigDigits)
+            length = int(np.linalg.norm(np.subtract(members[i][j][0],members[i][j][-1]))*m.pow(10,sigDigits))/m.pow(10,sigDigits)
 
-            length = int(np.linalg.norm(np.subtract(members[i][j][0],members[i][j][-1])))
+            # length = int(np.linalg.norm(np.subtract(members[i][j][0],members[i][j][-1])))
 
             f.write(' ' + str(0))
             f.write(' ' + str(length))
@@ -83,3 +83,27 @@ def exportPolyline(members, dir, sigDigits = 3):
         f.close()
 
         print(dir)
+
+
+def exportPolylineCSV(members, loc, sigDigits = 3):
+
+    f = open(loc, 'w')
+
+    for i in range(len(members)):
+
+        for j in range(len(members[i])):
+
+            f.write(str(members[i][0]))
+            f.write(' ')
+            f.write(str(members[i][1]))
+            f.write(' ')
+            f.write(str(members[i][2]))
+
+            if j < len(members[i])-1:
+                f.write(',')
+
+        if i < len(members)-1:
+
+            f.write('\n')
+
+    f.close()
