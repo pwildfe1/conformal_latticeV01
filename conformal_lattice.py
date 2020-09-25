@@ -11,18 +11,6 @@ import os
 import json
 
 
-class unit:
-
-	def __init__(self, verts = [], faces = [], members = []):
-
-		self.v = verts
-		self.f = faces
-		self.members = members
-
-	def uploadMesh(self, src):
-
-		
-
 
 class conformalLattice:
 
@@ -97,7 +85,124 @@ class conformalLattice:
 
 
 
-	def tileUnit(self, unit):
+	def addMerges(self, travel_axi, travel_center, travel_range, merge_range = [1,1]):
+
+		travel_st = int(travel_range[0]*self.grid.shape[travel_axi])
+		travel_en = int(travel_range[1]*self.grid.shape[travel_axi])
+
+		cnt = travel_center
+
+		for i in range(self.grid.shape[travel_axi]):
+
+			if i>=travel_st and i<=travel_en:
+
+				if travel_axi == 0:
+
+					for j in range(merge_range[0]):
+
+						merge_center = cnt[0] + j
+
+						if merge_center < self.grid.shape[1]:
+
+							for k in range(merge_range[1]):
+
+								if cnt[1] + k < self.grid.shape[2]:
+
+									self.grid[i, merge_center, cnt[1] + k] = self.grid[i, cnt[0], cnt[1] + k]
+
+								if cnt[1] - k > 0:
+
+									self.grid[i, merge_center, cnt[1] - k] = self.grid[i, cnt[0], cnt[1] - k]
+
+						
+						merge_center = cnt[0] - j
+
+						if merge_center > 0:
+
+							for k in range(merge_range[1]):
+
+								if cnt[1] + k < self.grid.shape[2]:
+
+									self.grid[i, merge_center, cnt[1] + k] = self.grid[i, cnt[0], cnt[1] + k]
+
+								if cnt[1] - k > 0:
+
+									self.grid[i, merge_center, cnt[1] - k] = self.grid[i, cnt[0], cnt[1] - k]
+
+
+
+
+				if travel_axi == 1:
+
+					for j in range(merge_range[0]):
+
+						merge_center = cnt[0] + j
+
+						if merge_center < self.grid.shape[0]:
+
+							for k in range(merge_range[1]):
+
+								if cnt[1] + k < self.grid.shape[2]:
+
+									self.grid[merge_center, i, cnt[1] + k] = self.grid[cnt[0], i, cnt[1] + k]
+
+								if cnt[1] - k > 0:
+
+									self.grid[merge_center, i, cnt[1] - k] = self.grid[cnt[0], i, cnt[1] - k]
+
+						
+						merge_center = cnt[0] - j
+
+						if merge_center > 0:
+
+							for k in range(merge_range[1]):
+
+								if cnt[1] + k < self.grid.shape[2]:
+
+									self.grid[merge_center, i, cnt[1] + k] = self.grid[cnt[0], i, cnt[1] + k]
+
+								if cnt[1] - k > 0:
+
+									self.grid[merge_center, i, cnt[1] - k] = self.grid[cnt[0], i, cnt[1] - k]
+
+
+
+				if travel_axi == 2:
+
+					for j in range(merge_range[0]):
+
+						merge_center = cnt[0] + j
+
+						if merge_center < self.grid.shape[0]:
+
+							for k in range(merge_range[1]):
+
+								if cnt[1] + k < self.grid.shape[1]:
+
+									self.grid[merge_center, cnt[1] + k, i] = self.grid[cnt[0], cnt[1] + k, i]
+
+								if cnt[1] - k > 0:
+
+									self.grid[merge_center, cnt[1] - k, i] = self.grid[cnt[0], cnt[1] - k, i]
+
+						
+						merge_center = cnt[0] - j
+
+						if merge_center > 0:
+
+							for k in range(merge_range[1]):
+
+								if cnt[1] + k < self.grid.shape[1]:
+
+									self.grid[merge_center, cnt[1] + k, i] = self.grid[cnt[0], cnt[1] + k, i]
+
+								if cnt[1] - k > 0:
+
+									self.grid[merge_center, cnt[1] - k, i] = self.grid[cnt[0], cnt[1] - k, i]
+
+
+
+	def createCells(self, unit):
 
 		members = []
 
@@ -143,13 +248,17 @@ def Main():
 	formV = ['NURBS/srf_03.stp', 'NURBS/srf_04.stp']
 	formW = ['NURBS/srf_05.stp', 'NURBS/srf_06.stp']
 
-	lattice = conformalLattice(guide, formV, formW, 14, 6, 4)
+	lattice = conformalLattice(guide, formV, formW, 14, 8, 6)
 
 	lattice.createGrid()
 
 	lattice.warpGrid(1)
 
-	lattice.tileUnit(np.array([[0,0,0]]))
+	# def addMerges(self, travel_axi, travel_center, travel_range, merge_axi, merge_range = 2):
+
+	lattice.addMerges(1, [7, 3], [.33,.66], [3,2])
+
+	lattice.createCells(np.array([[0,0,0]]))
 
 
 Main()

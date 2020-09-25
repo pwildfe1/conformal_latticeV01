@@ -32,8 +32,9 @@ class surface:
 		V = v*(maxV-minV) + minV
 
 		point = self.srf.valueAt(U, V)
+		normal = self.srf.normalAt(U, V)
 
-		return point
+		return [point, normal]
 
 	def extractGrid(self, dimU, dimV):
 
@@ -50,8 +51,10 @@ class surface:
 
 				u, v = i/dimU, j/dimV
 
-				col.append(self.evalSurface(u, v))
-				n_col.append(self.normalAt(u,v))
+				info = self.evalSurface(u, v)
+
+				col.append(info[0])
+				n_col.append(info[1])
 
 			U.append(col)
 			normals.append(n_col)

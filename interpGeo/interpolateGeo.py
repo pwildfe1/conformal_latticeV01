@@ -1,6 +1,7 @@
 import numpy as np
 import os
 import sys
+import math as m
 from scipy.interpolate import CubicSpline
 
 
@@ -74,12 +75,20 @@ class interpCrv:
 		indexes = np.arange(self.pts.shape[0])
 
 		tans = []
+		gaps = []
 
 		for i in range(len(indexes)):
 
 			tan = [self.fx(indexes[i],1),self.fy(indexes[i],1),self.fz(indexes[i],1)]
 			mag = np.linalg.norm(np.array(tan))
-			tans.append([tan[0]/mag, tan[1]/mag, tan[2]/mag])
+			if mag == 0 and i < len(indexes)-1:
+				tan = np.subtract(self.pts[i + 1], self.pts[i])
+			elif mag ==0 and i == len(indexes)-1:
+				tan = np.subtract(self.pts[i], self.pts[i-1])
+			else:
+				tan = [tan[0]/mag, tan[1]/mag, tan[2]/mag]
+
+			tans.append(tan)
 
 		self.tans = np.array(tans)
 
@@ -94,13 +103,26 @@ class interpCrv:
 
 		pts = []
 		tans = []
+		gaps = []
 
 		for i in range(len(indexes)):
 
 			pts.append([self.fx(indexes[i]),self.fy(indexes[i]),self.fz(indexes[i])])
 			tan = [self.fx(indexes[i],1),self.fy(indexes[i],1),self.fz(indexes[i],1)]
 			mag = np.linalg.norm(np.array(tan))
+			if mag == 0:
+				gaps.append(i)
 			tans.append([tan[0]/mag, tan[1]/mag, tan[2]/mag])
+
+		for i in range(len(gaps)):
+
+			if gaps[i] < len(pts)-1:
+				vec = np.subtract(pts[gaps[i]+1], pts[gaps[i]])
+			else:
+				vec = np.subtract(pts[gaps[i]], pts[gaps[i]-1])
+
+			mag = np.linalg.norm(vec)
+			tans[gaps[i]] = list(vec/mag)
 
 		self.pts = np.array(pts)
 		self.tans = np.array(tans)
@@ -500,6 +522,7 @@ class interpSrf:
 	def createFaces(self):
 
 		for i in range(len(self.U)):
+
 			for j in range(len(self.U[i])):
 				
 				self.v.append(self.U[i][j])
@@ -758,7 +781,8 @@ class interpSrf:
 
 		return self.v
 
-	def createBoxes(self,atts,hAtts,dimU,dimV,dimW,height,limit=10,limitH=15,closed=True):
+
+	def createBoxes(self,atts,hAtts,dimU,dimV,dimW,height,limit=10,limitH=15,closed=True, merge_V_centers = [], merge_V_ranges = [], merge_V = [], merge_U_centers = [], merge_U_ranges = [], merge_U = []):
 
 		u = []
 		v = []
@@ -854,11 +878,23 @@ class interpSrf:
 					pt04 = layers[i][(j+1)%len(layers[i])][k]
 					botPts = [pt01,pt02,pt03,pt04]
 
+					for n in range(len(botPts)):
+						if m.isnan(botPts[n][0]) or m.isnan(botPts[n][1]) or m.isnan(botPts[n][2]):
+							botPts[n] = np.add(botPts[n-1],botPts[(n+1)%len(botPts)])
+							botPts[n] = list(botPts[n]/2)
+							print('holy shit bottom')
+
 					pt05 = layers[(i+1)%len(layers)][j][k]
 					pt06 = layers[(i+1)%len(layers)][j][k+1]
 					pt07 = layers[(i+1)%len(layers)][(j+1)%len(layers[i])][k+1]
 					pt08 = layers[(i+1)%len(layers)][(j+1)%len(layers[i])][k]
 					topPts = [pt05,pt06,pt07,pt08]
+
+					for n in range(len(topPts)):
+						if m.isnan(topPts[n][0]) or m.isnan(topPts[n][1]) or m.isnan(topPts[n][2]):
+							topPts[n] = np.add(topPts[n-1],topPts[(n+1)%len(topPts)])
+							topPts[n] = list(topPts[n]/2)
+							print('holy shit top')
 
 					cellAreas.append(np.linalg.norm(np.subtract(pt01,pt02))*np.linalg.norm(np.subtract(pt04,pt01)))
 
@@ -944,7 +980,7 @@ class interpSrf:
 						crvs.append(cell)
 						finalCells.append(cell)
 
-					print(str(num/((len(layers))*len(layers[i])*(len(layers[i][j])))*100) + ' %')
+					print(str(int(num/((len(layers))*len(layers[i])*(len(layers[i][j])))*100*100)/100) + ' %')
 					num = num + 1
 
 		self.finalCells = finalCells
@@ -1418,38 +1454,29 @@ def importCrvOBJ(loc):
 
 
 
-def importMeshOBJ(loc):
-
-	f = open(loc, 'r')
-	allLines = f.read().split('\n')
-
-	f = []
-	v = []
-
-	for i in range(len(allLines)):
-
-		line = allLines[i].split(' ')
-
-		if line[0] == 'v':
-
-
-
 
 class boxMorph:
 
-	def __init__(self, crns, src = []):
+	def __init__(self, crns, src = None):
 
 		self.crns = crns
+
+		if src == None: 
+			self.src = self.crns
+		else:
+			self.src = src
+
+		self.W = np.linalg.norm(self.crns[1] - self.crns[0])
+		self.L = np.linalg.norm(self.crns[3] - self.crns[0])
 
 		self.x_ax = [self.crns[1] - self.crns[0]]
 		self.x_ax.append(self.crns[2] - self.crns[3])
 		self.x_ax.append(self.crns[5] - self.crns[4])
 		self.x_ax.append(self.crns[6] - self.crns[7])
 
-		self.x_ax = np.array(self.x_ax)
+		self.lock = False
 
-		if src == []: src = self.crns
-		self.src = src
+		self.x_ax = np.array(self.x_ax)
 		self.v = self.mapV(self.src)
 
 
@@ -1466,26 +1493,33 @@ class boxMorph:
 
 		nrmPt = [0,0,0]
 
-		for i in range(pts.shape[0]):
+		if maxX-minX != 0 and maxY-minY != 0 and maxZ-minZ != 0:
 
-			nrmPt[0] = (pts[i,0] - minX)/(maxX-minX)
-			nrmPt[1] = (pts[i,1] - minY)/(maxY-minY)
-			nrmPt[2] = (pts[i,2] - minZ)/(maxZ-minZ)
+			for i in range(pts.shape[0]):
 
-			st_botPt = nrmPt[0]*self.x_ax[0] + self.crns[0]
-			en_botPt = nrmPt[0]*self.x_ax[1] + self.crns[3]
+				nrmPt[0] = (pts[i,0] - minX)/(maxX-minX)
+				nrmPt[1] = (pts[i,1] - minY)/(maxY-minY)
+				nrmPt[2] = (pts[i,2] - minZ)/(maxZ-minZ)
 
-			bot_pt = st_botPt + (en_botPt - st_botPt)*nrmPt[1]
+				st_botPt = nrmPt[0]*self.x_ax[0] + self.crns[0]
+				en_botPt = nrmPt[0]*self.x_ax[1] + self.crns[3]
 
-			st_topPt = nrmPt[0]*self.x_ax[2] + self.crns[4]
-			en_topPt = nrmPt[0]*self.x_ax[3] + self.crns[7]
+				bot_pt = st_botPt + (en_botPt - st_botPt)*nrmPt[1]
 
-			top_pt = st_topPt + (en_topPt - st_topPt)*nrmPt[1]
+				st_topPt = nrmPt[0]*self.x_ax[2] + self.crns[4]
+				en_topPt = nrmPt[0]*self.x_ax[3] + self.crns[7]
 
-			mapPts.append(bot_pt + (top_pt - bot_pt)*nrmPt[2])
-			
+				top_pt = st_topPt + (en_topPt - st_topPt)*nrmPt[1]
 
-		mapPts = np.array(mapPts)
+				mapPts.append(bot_pt + (top_pt - bot_pt)*nrmPt[2])
+				
+
+			mapPts = np.array(mapPts)
+
+		else:
+
+			mapPts = np.array([])
+			self.lock = True
 			
 		return mapPts
 
@@ -1532,14 +1566,81 @@ class boxMorph:
 		return self.v
 
 
+	def divide(self, thres = m.pow(1, 1000), divide = False):
+
+		boxes = []
+		boxcrns_0, boxcrns_1, boxcrns_2, boxcrns_3 = [], [], [], []
+
+		midB_01 = (self.crns[1] - self.crns[0])/2 + self.crns[0]
+		midB_02 = (self.crns[2] - self.crns[1])/2 + self.crns[1] 
+		midB_03 = (self.crns[3] - self.crns[2])/2 + self.crns[2]
+		midB_04 = (self.crns[0] - self.crns[3])/2 + self.crns[3]
+
+		midT_01 = (self.crns[5] - self.crns[4])/2 + self.crns[4]
+		midT_02 = (self.crns[6] - self.crns[5])/2 + self.crns[5]
+		midT_03 = (self.crns[7] - self.crns[6])/2 + self.crns[6]
+		midT_04 = (self.crns[4] - self.crns[7])/2 + self.crns[7]
+
+		cnt_B = np.multiply((self.crns[0] + self.crns[1] + self.crns[2] + self.crns[3]), .25)
+		cnt_T = np.multiply((self.crns[4] + self.crns[5] + self.crns[6] + self.crns[7]), .25)
+
+		if self.L > thres and self.W > thres or divide:
+
+			boxcrns_0 = [self.crns[0], midB_01, cnt_B, midB_04, self.crns[4], midT_01, cnt_T, midT_04]
+			boxcrns_1 = [midB_01, self.crns[1], midB_02, cnt_B, midT_01, self.crns[5], midT_02, cnt_T]
+			boxcrns_2 = [cnt_B, midB_02, self.crns[2], midB_03, cnt_T, midT_02, self.crns[6], midT_03]
+			boxcrns_3 = [midB_04, cnt_B, midB_03, self.crns[3], midT_04, cnt_T, midT_03, self.crns[7]]
+
+			boxes = [boxcrns_0, boxcrns_1, boxcrns_2, boxcrns_3]
+
+		if self.W < thres and self.L > thres and divide == False:
+
+			boxcrns_0 = [self.crns[0], self.crns[1], midB_02, midB_04, self.crns[4], self.crns[5], midT_02, midT_04]
+			boxcrns_1 = [midB_04, midB_02, self.crns[2], self.crns[3], midT_04, midT_02, self.crns[6], self.crns[7]]
+
+			boxes = [boxcrns_0, boxcrns_1]
+
+		if self.W > thres and self.L < thres and divide == False:
+
+			boxcrns_0 = [self.crns[0], midB_01, midB_03, self.crns[3], self.crns[4], midT_01, midT_03, self.crns[7]]
+			boxcrns_1 = [midB_01, self.crns[1], self.crns[2], midB_03, midT_01, self.crns[5], self.crns[6], midT_03]
+
+			boxes = [boxcrns_0, boxcrns_1]
+
+		if self.W < thres and self.L < thres and divide == False:
+
+			boxes = [self.crns]
+
+		return boxes
+
+
 	def genDefault(self):
 
 		members = []
 
+		self.v = self.crns
+
 		for i in range(4):
 
-			members.append([self.crns[i], self.crns[(i+1)%4]])
-			members.append([self.crns[i + 4], self.crns[(i+1)%4 + 4]])
-			members.append([self.crns[i], self.crns[i + 4]])
+			members.append([self.v[i], self.v[(i+1)%4]])
+			members.append([self.v[i + 4], self.v[(i+1)%4 + 4]])
+			members.append([self.v[i], self.v[i+4]])
 
 		return members
+
+
+
+
+# def importMeshOBJ(loc):
+
+# 	f = open(loc, 'r')
+# 	allLines = f.read().split('\n')
+
+# 	f = []
+# 	v = []
+
+# 	for i in range(len(allLines)):
+
+# 		line = allLines[i].split(' ')
+
+# 		if line[0] == 'v':
