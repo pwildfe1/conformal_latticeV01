@@ -1452,23 +1452,141 @@ def importCrvOBJ(loc):
 	return [np.array(crvs),np.array(verts)]
 
 
+####
+# importMeshOBJ (loc)
+# imports .obj as a list of faces (quads and triangles) and a list of vertices (3D points)
+# loc (str) = the path location and file name for the output .obj file
+####
+
+def importMeshOBJ(loc):
+
+	f = open(loc,'r')
+	allLines = f.read().split('\n')
+
+	faces = []
+	verts = []
+
+	broken = False
+
+	for i in range(len(allLines)):
+
+		line = allLines[i].split(' ')
+
+		if line[0] == 'v':
+
+			pt = [float(line[1]),float(line[2]),float(line[3])]
+			verts.append(pt)
+			broken = False
+
+		elif line[0] == 'f':
+
+			face = []
+
+			for j in range(len(line)):
+
+				if j>0:
+
+					f_traits = line[j].split('/')
+					
+					for k in range(len(f_traits)):
+
+						if f_traits[k] != '' and k == 0: 
+							face.append(int(f_traits[k]) - 1)
+
+			if len(face) >= 3:
+				faces.append(face)
 
 
+	return [np.array(verts),faces]
+
+
+####
+# exportMeshOBJ (faces, verts, norms, loc)
+# exports mesh as .obj file
+# faces (tri or quad) = a list of triangle or quads represented by lists of 3 or 4 index values per face
+# verts (numpy array 3D points) = an array of vertex points  
+# loc (str) = the path location and file name for the output .obj file
+####
+
+def exportMeshOBJ(faces, verts, norms, loc):
+
+	f = open(loc,'w')
+
+	f.write('# Rhino')
+	f.write('\n')
+	f.write('\n')
+
+	for i in range(verts.shape[0]):
+
+		f.write('v')
+		f.write(' ')
+		f.write(str(verts[i, 0]))
+		f.write(' ')
+		f.write(str(verts[i, 1]))
+		f.write(' ')
+		f.write(str(verts[i, 2]))
+		f.write('\n')
+
+	for i in range(norms.shape[0]):
+
+		f.write('vn')
+		f.write(' ')
+		f.write(str(norms[i, 0]))
+		f.write(' ')
+		f.write(str(norms[i, 1]))
+		f.write(' ')
+		f.write(str(norms[i, 2]))
+		f.write('\n')
+
+	for i in range(len(faces)):
+
+		f.write('f')
+		f.write(' ')
+
+		for j in range(len(faces[i])):
+
+			f.write(str(int(faces[i][j] + 1)))
+			f.write('//')
+			f.write(str(int(faces[i][j] + 1)))
+
+			if j < len(faces[i])-1:
+				f.write(' ')
+
+		if i < len(faces) - 1:
+			f.write('\n')
+
+	f.close()
+
+	return [np.array(verts),faces]
+
+
+
+"""
+BOXMORPH CLASS creates a mapping object for transforming 3D points from a unit box to a user defined box
+Input:
+crns (numpy array of (8,3) points) = points defining the corners of the morphing box
+src (numpy array of 3D points) = the points placed in world coordinates defining the vertices to be mapped
+faces (numpy array of 3 or 4 indicies) = a list defining the faces of the input and output meshes
+"""
 
 class boxMorph:
 
-	def __init__(self, crns, src = None):
+	def __init__(self, crns, src = np.array([]), faces = np.array([])):
 
 		self.crns = crns
 
-		if src == None: 
+		# if there were no faces or vertices provided the box maps the corners of a normal 1x1x1 box
+
+		if src.shape[0] == 0: 
 			self.src = self.crns
 		else:
 			self.src = src
 
+		# gets the general width and length of the box based on the starting corner
 		self.W = np.linalg.norm(self.crns[1] - self.crns[0])
 		self.L = np.linalg.norm(self.crns[3] - self.crns[0])
 
+		# defines all the x_axis edges in the box
 		self.x_ax = [self.crns[1] - self.crns[0]]
 		self.x_ax.append(self.crns[2] - self.crns[3])
 		self.x_ax.append(self.crns[5] - self.crns[4])
@@ -1477,8 +1595,17 @@ class boxMorph:
 		self.lock = False
 
 		self.x_ax = np.array(self.x_ax)
-		self.v = self.mapV(self.src)
+		self.v = self.mapV(self.src)  # defines the mapped vertices
+		self.f = faces
 
+
+	####
+	# mapV (faces, verts, norms, loc)
+	# exports mesh as .obj file
+	# faces (tri or quad) = a list of triangle or quads represented by lists of 3 or 4 index values per face
+	# verts (numpy array 3D points) = an array of vertex points  
+	# loc (str) = the path location and file name for the output .obj file
+	####
 
 	def mapV(self, pts):
 
@@ -1493,24 +1620,36 @@ class boxMorph:
 
 		nrmPt = [0,0,0]
 
+		# if the dimension between points is 0 in any direction ignore all the vertices (no 2D objects)
+
 		if maxX-minX != 0 and maxY-minY != 0 and maxZ-minZ != 0:
 
+			# SCROLLS THROUGH EACH POINT AND MAPS IT TO THE BOX BASED ON ITS PARAMETER LOCATION IN SPACE
+
 			for i in range(pts.shape[0]):
+
+				# normalize the vertex points
 
 				nrmPt[0] = (pts[i,0] - minX)/(maxX-minX)
 				nrmPt[1] = (pts[i,1] - minY)/(maxY-minY)
 				nrmPt[2] = (pts[i,2] - minZ)/(maxZ-minZ)
 
-				st_botPt = nrmPt[0]*self.x_ax[0] + self.crns[0]
-				en_botPt = nrmPt[0]*self.x_ax[1] + self.crns[3]
+				# find the point location on the bottom face of the target box
 
+				st_botPt = nrmPt[0]*self.x_ax[0] + self.crns[0] # bottom first x axis evaluate location
+				en_botPt = nrmPt[0]*self.x_ax[1] + self.crns[3] # bottom second x axis evaluate location
+
+				# draw line between previous points and evaluate location on y axis using V coordinate
 				bot_pt = st_botPt + (en_botPt - st_botPt)*nrmPt[1]
+
+				# repeat process for the top face
 
 				st_topPt = nrmPt[0]*self.x_ax[2] + self.crns[4]
 				en_topPt = nrmPt[0]*self.x_ax[3] + self.crns[7]
 
 				top_pt = st_topPt + (en_topPt - st_topPt)*nrmPt[1]
 
+				# draw line between bottom point and top point then evaluate location on z axis for the W coordinate
 				mapPts.append(bot_pt + (top_pt - bot_pt)*nrmPt[2])
 				
 
@@ -1524,9 +1663,19 @@ class boxMorph:
 		return mapPts
 
 
+
+	####
+	# getTransform (att, thres)
+	# generates transformation matrix covering every vertex in the boxMorph
+	# att (numpy array of 3D points) = points representing the attractor curve in question
+	# thres (float) = a threshold distance for blending units 
+	####
+
 	def getTransform(self, att, thres):
 
 		factors = []
+
+		# generate blend values for every individual vertex
 
 		for i in range(self.src.shape[0]):
 
@@ -1545,17 +1694,30 @@ class boxMorph:
 
 
 
+	####
+	# blendSrc (target, att, thres)
+	# deals with blending different units together based off of attractors
+	# target (numpy array of 3D points) = points representing the target unit that you are blending towards
+	# att (numpy array of 3D points) = points representing the attractor curve in question
+	# thres (float) = a threshold distance for blending units 
+	####
+
+
 	def blendSrc(self, target, att, thres):
 
 		self.tar = target
 
 		self.getTransform(att, thres)
 
+		# checks if the number of vertices in each set for blending match
 		if self.tar.shape[0] != self.src.shape[0]:
 			print("BLENDING TARGETS DON'T MATCH")
 			return -1
 
+		# finds the difference between the target and source vertices in the unit box (before morphing)
 		vecs = self.tar[:] - self.src[:]
+
+		# scales each vector based on the transform matrix from above
 		vecs[:,0] = self.transform[:]*vecs[:,0]
 		vecs[:,1] = self.transform[:]*vecs[:,1]
 		vecs[:,2] = self.transform[:]*vecs[:,2]
@@ -1564,6 +1726,14 @@ class boxMorph:
 		self.v = self.mapV(self.src)
 
 		return self.v
+
+
+	####
+	# divide (thres, divide)
+	# divides boxes with widths or lengths greater than a specified threshold into 2 - 4 subboxes
+	# thres (float) = the threshold above which the box will divide
+	# divide (boolean) = if True the box will divide into four regardless of the threshold
+	####
 
 
 	def divide(self, thres = m.pow(1, 1000), divide = False):
@@ -1584,6 +1754,8 @@ class boxMorph:
 		cnt_B = np.multiply((self.crns[0] + self.crns[1] + self.crns[2] + self.crns[3]), .25)
 		cnt_T = np.multiply((self.crns[4] + self.crns[5] + self.crns[6] + self.crns[7]), .25)
 
+		# if both width and length greater than threshold or divide on then split the box into four pieces
+
 		if self.L > thres and self.W > thres or divide:
 
 			boxcrns_0 = [self.crns[0], midB_01, cnt_B, midB_04, self.crns[4], midT_01, cnt_T, midT_04]
@@ -1593,12 +1765,16 @@ class boxMorph:
 
 			boxes = [boxcrns_0, boxcrns_1, boxcrns_2, boxcrns_3]
 
+		# if length greater than threshold then split box along the Y axis (the length)
+
 		if self.W < thres and self.L > thres and divide == False:
 
 			boxcrns_0 = [self.crns[0], self.crns[1], midB_02, midB_04, self.crns[4], self.crns[5], midT_02, midT_04]
 			boxcrns_1 = [midB_04, midB_02, self.crns[2], self.crns[3], midT_04, midT_02, self.crns[6], self.crns[7]]
 
 			boxes = [boxcrns_0, boxcrns_1]
+
+		# if length greater than threshold then split box along the X axis (the width)
 
 		if self.W > thres and self.L < thres and divide == False:
 
@@ -1613,6 +1789,12 @@ class boxMorph:
 
 		return boxes
 
+
+
+	####
+	# genDefault ()
+	# generates a basic box unit of curves to preview the shape of the morphed box
+	####
 
 	def genDefault(self):
 

@@ -17,12 +17,25 @@ def readSurface(path):
 	return srf
 
 
+"""
+SURFACE reads a surface .stp or .iges file for reading and grid extraction
+Input:
+path (str) = file location of the .iges or .stp file
+"""
+
 class surface:
 
 	def __init__(self, path):
 
 		self.srf = readSurface(path)
 
+	####
+	# evalSurface (u, v)
+	# evaluates the surface at a normalized parameter to extract the point location and normal
+	# Input:
+	# u (float) = normalized value between 0 - 1 indicating the relative location of evaluation in the u value
+	# v (float) = normalized value between 0 - 1 indicating the relative location of evaluation in the v value
+	####
 
 	def evalSurface(self, u, v):
 
@@ -35,6 +48,15 @@ class surface:
 		normal = self.srf.normalAt(U, V)
 
 		return [point, normal]
+
+
+	####
+	# extractGrid (dimU, dimV)
+	# extracts a grid of points and normals that is dimU by dimV
+	# Input:
+	# dimU (int) = number of points in the U direction
+	# dimV (int) = number of points in the V direction
+	####
 
 	def extractGrid(self, dimU, dimV):
 
