@@ -1736,7 +1736,7 @@ class boxMorph:
 	####
 
 
-	def divide(self, thres = m.pow(1, 1000), divide = False):
+	def divide(self, thres = m.pow(10, 1000), divide = False):
 
 		boxes = []
 		boxcrns_0, boxcrns_1, boxcrns_2, boxcrns_3 = [], [], [], []
