@@ -536,11 +536,14 @@ class conformalLattice:
 
 def Main():
 
-	guide = ['NURBS/srf_01.stp', 'NURBS/srf_02.stp']
-	formV = ['NURBS/srf_03.stp', 'NURBS/srf_04.stp']
-	formW = ['NURBS/srf_05.stp', 'NURBS/srf_06.stp']
+	# guide = ['NURBS/srf_01.stp', 'NURBS/srf_02.stp']
+	# formV = ['NURBS/srf_03.stp', 'NURBS/srf_04.stp']
+	# formW = ['NURBS/srf_05.stp', 'NURBS/srf_06.stp']
 
-	lattice = conformalLattice(guide, formV, formW, 14, 8, 6)
+	guide = ['inner_scaffold.igs', 'outer_scaffold.igs']
+	formV, formW = [], []
+
+	lattice = conformalLattice(guide, formV, formW, 28, 2, 2)
 	lattice.createGrid()
 	lattice.warpGrid(.25)
 
@@ -551,11 +554,11 @@ def Main():
 	#
 	# axis moved across U, starts at 4V,3W location, moves from 4/14 to 10/14 in U axis, merging 4V (rows) and 3W (columns)
 
-	lattice.addMerges(0, [4, 3], [4/14, 10/14], [4,3])
+	# lattice.addMerges(0, [4, 3], [4/14, 10/14], [4,3])
 
 	lattice.createCells(baseUnit, False)
 
-	lattice.genMeshUnits()
+	lattice.genMeshUnits("woven_ring.obj")
 
 
 Main()

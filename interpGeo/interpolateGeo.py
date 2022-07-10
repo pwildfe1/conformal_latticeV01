@@ -1574,13 +1574,18 @@ class boxMorph:
 	def __init__(self, crns, src = np.array([]), faces = np.array([])):
 
 		self.crns = crns
+		self.src = src
+		self.f = faces
 
 		# if there were no faces or vertices provided the box maps the corners of a normal 1x1x1 box
 
-		if src.shape[0] == 0: 
+		self.initiate()
+
+
+	def initiate(self):
+
+		if self.src.shape[0] == 0: 
 			self.src = self.crns
-		else:
-			self.src = src
 
 		# gets the general width and length of the box based on the starting corner
 		self.W = np.linalg.norm(self.crns[1] - self.crns[0])
@@ -1596,7 +1601,6 @@ class boxMorph:
 
 		self.x_ax = np.array(self.x_ax)
 		self.v = self.mapV(self.src)  # defines the mapped vertices
-		self.f = faces
 
 
 	####
@@ -1695,6 +1699,38 @@ class boxMorph:
 
 
 	####
+	# getTransform (att, thres)
+	# generates transformation matrix covering every vertex in the boxMorph
+	# att (numpy array of 3D points) = points representing the attractor curve in question
+	# thres (float) = a threshold distance for blending units 
+	####
+
+	def heightTransform(self, val, att, thres = 20):
+
+		factors = []
+
+		# generate blend values for every individual vertex
+
+		for i in range(4):
+
+			diff = att[:] - self.crns[i]
+			minimum = np.min(np.linalg.norm(att[:] - self.crns[i], axis = 1))
+
+			factor = 1 - minimum/thres
+			if factor > 1: factor = 1
+			if factor < 0: factor = 0
+
+			deltaHeight = np.subtract(self.crns[i + 4], self.crns[i]) * factor * val
+
+			self.crns[i+4] = self.crns[i+4] + deltaHeight
+
+		self.initiate()
+
+		return self.crns
+
+
+
+	####
 	# blendSrc (target, att, thres)
 	# deals with blending different units together based off of attractors
 	# target (numpy array of 3D points) = points representing the target unit that you are blending towards
@@ -1736,7 +1772,7 @@ class boxMorph:
 	####
 
 
-	def divide(self, thres = m.pow(10, 1000), divide = False):
+	def divideUnit(self, thres = m.pow(10, 100), divide = False):
 
 		boxes = []
 		boxcrns_0, boxcrns_1, boxcrns_2, boxcrns_3 = [], [], [], []
