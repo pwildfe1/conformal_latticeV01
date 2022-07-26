@@ -1684,11 +1684,20 @@ class boxMorph:
 		for i in range(self.src.shape[0]):
 
 			diff = att[:] - self.v[i]
-			minimum = np.min(np.linalg.norm(att[:] - self.v[i], axis = 1))
+			valid = np.where(np.linalg.norm(diff, axis = 1) < thres)[0]
 
-			factor = 1 - minimum/thres
-			if factor > 1: factor = 1
-			if factor < 0: factor = 0
+			if (valid.shape[0] > 0):
+				
+				valid_attr = att[valid]
+				minimum = np.mean(np.linalg.norm(valid_attr[:] - self.v[i], axis = 1), 0)
+
+				factor = 1 - minimum/thres
+				if factor > 1: factor = 1
+				if factor < 0: factor = 0
+			
+			else:
+
+				factor = 0
 
 			factors.append(factor)
 

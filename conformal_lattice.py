@@ -182,6 +182,17 @@ class unit:
 		return self.els
 
 
+class Attractor:
+
+	def __init__(self, lattice, cnt, threshold, unit):
+
+		self.lattice = lattice
+		self.blend = unit
+		self.cnt = cnt
+		self.thres = threshold
+
+
+
 """
 CONFORMAL LATTICE CLASS uses up to 2-6 surfaces to form a lattice based on user defined boundary surfaces
 Input:
@@ -211,6 +222,8 @@ class conformalLattice:
 
 		self.formV = []
 		self.formW = []
+
+		self.attractors = []
 
 		self.rails = [NURBS.surface(guides[0]), NURBS.surface(guides[1])]  # the surfaces that generate the base grid
 
@@ -434,6 +447,33 @@ class conformalLattice:
 									self.grid[merge_center, cnt[1] - k, i] = self.grid[cnt[0], cnt[1] - k, i]
 
 
+	def addAttractor(self, attPt, thres, unit):
+
+		self.attractors.append(Attractor(self, attPt, thres, unit))
+
+	def applyAttractors(self):
+
+		attCenters = []
+
+		for i in range(len(self.attractors)):
+			attCenters.append(self.attractors[i].cnt)
+
+		attCenters = np.array(attCenters)
+		
+		limiter = 3*self.attractors[0].thres
+		if (limiter < np.max(self.cell_radii)): limiter = np.max(self.cell_radii)
+
+		affected = 0
+		total = 0
+
+		for i in range(self.cells.shape[0]):
+			for j in range(self.cells.shape[1]):
+				for k in range(self.cells.shape[2]):
+					if np.min(np.linalg.norm(attCenters[:] - self.units[i, j, k].v[0], axis = 1)) < limiter:
+						self.units[i, j, k].v = self.cells[i, j, k].blendSrc(self.attractors[0].blend, attCenters, self.attractors[0].thres)
+						affected = affected + 1
+					total = total + 1
+
 	####
 	# createCells(self, unit, genBoxes)
 	# creates basic boxes and their corresponding units
@@ -445,6 +485,8 @@ class conformalLattice:
 
 		self.unit = unit
 		self.units = []
+
+		self.cell_radii = []
 
 		points = unit.v
 		if len(unit.f) != 0:
@@ -478,6 +520,9 @@ class conformalLattice:
 					pt08 = self.grid[i, j+1, k+1]
 
 					crns = np.array([pt01, pt02, pt03, pt04, pt05, pt06, pt07, pt08])
+
+					cell_radius = np.max(np.linalg.norm(crns[:] - np.mean(crns, 0), axis = 1))*2
+					self.cell_radii.append(cell_radius)
 
 					# create a box morph object based on the corners and points from the vertices in the base unit
 					cell_cols.append(iG.boxMorph(crns, points, faces))
@@ -534,31 +579,39 @@ class conformalLattice:
 
 
 
-def Main():
+def Main(base_unit, guides, formV = [], formW = [], blend_unit = ""):
 
 	# guide = ['NURBS/srf_01.stp', 'NURBS/srf_02.stp']
 	# formV = ['NURBS/srf_03.stp', 'NURBS/srf_04.stp']
 	# formW = ['NURBS/srf_05.stp', 'NURBS/srf_06.stp']
 
-	guide = ['inner_scaffold.igs', 'outer_scaffold.igs']
-	formV, formW = [], []
-
-	lattice = conformalLattice(guide, formV, formW, 28, 2, 2)
+	lattice = conformalLattice(guides, formV, formW, 56, 2, 1)
 	lattice.createGrid()
 	lattice.warpGrid(.25)
 
-	imported = iG.importMeshOBJ('test_unit_tri.obj')
+	imported = iG.importMeshOBJ(base_unit)
 	baseUnit = Mesh(imported[0], np.array(imported[1]))
 
+	lattice.createCells(baseUnit, False)
+
+	if (blend_unit != ""):
+
+		imported_blend = iG.importMeshOBJ(blend_unit)
+		blendUnit = Mesh(imported_blend[0], np.array(imported_blend[1]))
+
+		lattice.addAttractor([25, 0, 1], 25, blendUnit.v)
+		lattice.addAttractor([-25, 0, 4], 25, blendUnit.v)
+		# lattice.addAttractor([0, 25, 1], 25, blendUnit.v)
+		# lattice.addAttractor([0, -25, 4], 25, blendUnit.v)
+		lattice.applyAttractors()
+
 	# addMerges(self, travel_axi, travel_center, travel_range, merge_axi, merge_range):
-	#
+
 	# axis moved across U, starts at 4V,3W location, moves from 4/14 to 10/14 in U axis, merging 4V (rows) and 3W (columns)
 
 	# lattice.addMerges(0, [4, 3], [4/14, 10/14], [4,3])
 
-	lattice.createCells(baseUnit, False)
-
 	lattice.genMeshUnits("woven_ring.obj")
+	
 
-
-Main()
+Main("unit_tri.obj", ["inner_scaffold.igs", "outer_scaffold.igs"], blend_unit = "unit_blend.obj")
