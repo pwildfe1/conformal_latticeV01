@@ -601,17 +601,15 @@ def Main(base_unit, guides, formV = [], formW = [], blend_unit = ""):
 
 		lattice.addAttractor([25, 0, 1], 25, blendUnit.v)
 		lattice.addAttractor([-25, 0, 4], 25, blendUnit.v)
-		# lattice.addAttractor([0, 25, 1], 25, blendUnit.v)
-		# lattice.addAttractor([0, -25, 4], 25, blendUnit.v)
 		lattice.applyAttractors()
 
 	# addMerges(self, travel_axi, travel_center, travel_range, merge_axi, merge_range):
 
 	# axis moved across U, starts at 4V,3W location, moves from 4/14 to 10/14 in U axis, merging 4V (rows) and 3W (columns)
 
-	# lattice.addMerges(0, [4, 3], [4/14, 10/14], [4,3])
+	lattice.addMerges(0, [4, 1], [4/14, 10/14], [1,0])
 
-	lattice.genMeshUnits("woven_ring.obj")
+	lattice.genMeshUnits("woven_blend_ring.obj")
 	
 
 Main("unit_tri.obj", ["inner_scaffold.igs", "outer_scaffold.igs"], blend_unit = "unit_blend.obj")

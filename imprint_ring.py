@@ -1,6 +1,3 @@
-import interpGeo.interpolateGeo as iG
-import interpGeo.exportPolyline as eP
-import interpGeo.nurbs as NURBS
 import math as m
 import numpy as np
 import scipy.interpolate
@@ -22,6 +19,7 @@ class Warp:
 		self.f = np.asarray(mesh.triangles)
 		self.mesh.compute_vertex_normals()
 		self.vn = np.asarray(mesh.vertex_normals)
+		self.attractors = []
 
 	def define_valid_vertices(self, zRange):
 
@@ -41,18 +39,24 @@ class Warp:
 		print(self.valid_indexes.shape)
 		print(self.v_valid.shape)
 
-	def imprint(self, curve, thres = 2, depth = .5):
+	def addAttractor(self, curve):
 
-		pts = np.array(curve.pts)
-		crv_cnt = np.mean(pts, 0)
-		z_size = np.max(pts[:, 2]) - np.min(pts[:, 2])
+		self.attractors.append(curve)
 
-		if z_size == 0:
-			z_size = 1000
+	def imprint(self, thres = .5, depth = .5):
+
+		attPts = []
+
+		for i in range(len(self.attractors)):
+			attPts.extend(self.attractors[i])
+
+		attPts = np.array(attPts)
+
+		print(attPts.shape)
 
 		for i in range(self.valid_indexes.shape[0]):
 			index = self.valid_indexes[i]
-			distances = np.linalg.norm(pts[:] - self.v[index], axis = 1)
+			distances = np.linalg.norm(attPts[:] - self.v[index], axis = 1)
 			if np.min(distances) < thres:
 				self.v[index] = self.v[index] - self.vn[index] * (1 - np.min(distances)/thres) * depth
 
@@ -66,20 +70,27 @@ class Warp:
 
 
 
-def main(path):
+def main(path, radius = 12):
 
 	mesh = o3d.io.read_triangle_mesh(path)
 	myWarp = Warp(mesh)
-	myWarp.define_valid_vertices([.75, 4.25])
+	myWarp.define_valid_vertices([1, 3.75])
 
-	pts = []
+	spacing = 2
+	resoU = int(2 * m.pi * radius/spacing)
 
-	for i in range(10):
-		pts.append([12, 0, .75 + i/9*3])
-
-	curve = iG.interpCrv(np.array(pts))
-	myWarp.imprint(curve)
+	for i in range(resoU):
+		pts = []
+		pts02 = []
+		for j in range(10):
+			pts.append([radius * m.sin(i/resoU * 2 * m.pi), radius * m.cos(i/resoU * 2 * m.pi), 1 + j/9 * 2.75 * m.sin(i/resoU * 2 * m.pi * 3)])
+			# pts02.append([radius * m.sin(i/resoU * 2 * m.pi), radius * m.cos(i/resoU * 2 * m.pi), 3.75 - j/9 * 2 * m.cos(i/resoU * 2 * m.pi * 3)])
+		# curve02 = iG.interpCrv(np.array(pts02))
+		myWarp.addAttractor(pts)
+		# myWarp.addAttractor(curve02)
+	
+	myWarp.imprint()
 	myWarp.write_mesh("test_imprint.obj")
 
 
-main("ring_construction.obj")
+main("ring_300x100.obj")
